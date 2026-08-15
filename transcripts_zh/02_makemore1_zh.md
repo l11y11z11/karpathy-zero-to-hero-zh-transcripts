@@ -348,17 +348,7 @@ $$P(x_2 = j \mid x_1 = i) = \frac{N_{i,j} + 1}{\sum_{k} (N_{i,k} + 1)}$$
 4. **损失函数**：负对数似然 (NLL) 损失。
 5. **优化**：通过反向传播计算梯度 $\nabla_W \text{Loss}$，更新 $W$ 以最小化损失。
 
-```
-Input (字符 x) ---> [ One-hot 编码 ] ---> (1, 27) 向量
-                                              |
-                                     矩阵乘法  * W (27, 27)
-                                              v
-                                        Logits (1, 27)
-                                              |
-                                         Softmax
-                                              v
-                                       Probabilities (1, 27)
-```
+![Bigram 语言模型流程](../assets/diagrams/bigram_pipeline.svg)
 
 ### 6.2 构建训练集张量 $X$ 与 $Y$
 

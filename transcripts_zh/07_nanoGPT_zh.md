@@ -352,16 +352,7 @@ xbow3 = wei @ x
 
 每个节点在当前时间步都会产生对应的 $Q, K, V$ 向量。
 
-```
-              ┌─────────┐
-              │ Token X │
-              └────┬────┘
-        ┌──────────┼──────────┐
-        ▼          ▼          ▼
-     ┌─────┐    ┌─────┐    ┌─────┐
-     │  Q  │    │  K  │    │  V  │
-     └─────┘    └─────┘    └─────┘
-```
+![自注意力中的 Q K V](../assets/diagrams/qkv_roles.svg)
 
 ### 6.2 维度推导与 Scaled Dot-Product Attention
 
@@ -519,20 +510,7 @@ class FeedForward(nn.Module):
 
 $$ x_{l+1} = x_l + F(x_l) $$
 
-```
-           x ──────────────┐
-           │               │
-           ▼               │ (Skip Connection)
-     ┌───────────┐         │
-     │ LayerNorm │         │
-     └─────┬─────┘         │
-           ▼               │
-     ┌───────────┐         │
-     │ Sub-Layer │         │
-     └─────┬─────┘         │
-           ▼               ▼
-           └──────────────►(+) ──► x_out
-```
+![Transformer 残差块](../assets/diagrams/residual_block.svg)
 
 在反向传播求导时，加法节点将上游梯度等量分发给两个分支：
 
@@ -651,13 +629,7 @@ dropout = 0.2
 
 在中等 GPU（如 NVIDIA A100）上训练约 15 分钟后，损失演进过程如下：
 
-```
-Bigram 初始模型:         Validation Loss ~ 4.87 / 2.50
-单头自注意力模型:         Validation Loss ~ 2.40
-多头自注意力 + FFN:      Validation Loss ~ 2.24
-加入残差与 LayerNorm:    Validation Loss ~ 2.06
-扩展为 6层 10M Transformer: Validation Loss ~ 1.48
-```
+![Transformer 验证损失进步](../assets/diagrams/transformer_loss_progression.svg)
 
 在 Validation Loss 降低至 **1.48** 后，生成的采样文本示例：
 
@@ -683,15 +655,7 @@ Bigram 初始模型:         Validation Loss ~ 4.87 / 2.50
 
 回看 2017 年论文《Attention is All You Need》中的原始架构图，它包含 **Encoder（编码器）** 和 **Decoder（解码器）** 两个对称部分：
 
-```
-       [ Input Text ]                     [ Output Text ]
-             │                                   │
-             ▼                                   ▼
-    ┌─────────────────┐                 ┌─────────────────┐
-    │  Encoder Block  │                 │  Decoder Block  │
-    │ (No Causal Mask)│ ─── Keys/Values ──► (Cross-Attention) │
-    └─────────────────┘                 └─────────────────┘
-```
+![Encoder–Decoder 结构](../assets/diagrams/encoder_decoder.svg)
 
 为什么我们在 nanoGPT（以及 GPT-2/3/4）中只保留了 **Decoder（Decoder-Only）** 架构？
 
@@ -711,27 +675,7 @@ Bigram 初始模型:         Validation Loss ~ 4.87 / 2.50
 
 构建完 10M 参数的 nanoGPT 后，如何将其演进为工业级 ChatGPT？整个过程包含两个核心阶段：**预训练（Pre-training）** 与 **对齐微调（Alignment & Fine-Tuning）**。
 
-```
-┌────────────────────────────────────────────────────────┐
-│ 1. 预训练阶段 (Pre-training)                             │
-│ 海量无标注文本 ──► 基础大模型 (Document Completer)        │
-└──────────────────────────┬─────────────────────────────┘
-                           │
-                           ▼
-┌────────────────────────────────────────────────────────┐
-│ 2. 对齐与微调阶段 (Alignment & RLHF)                     │
-│ ┌────────────────────────────────────────────────────┐ │
-│ │ Step 1: 监督微调 SFT (Instruction Tuning)          │ │
-│ ├────────────────────────────────────────────────────┤ │
-│ │ Step 2: 训练奖励模型 RM (Reward Model)             │ │
-│ ├────────────────────────────────────────────────────┤ │
-│ │ Step 3: PPO 强化学习对齐 (RLHF)                     │ │
-│ └────────────────────────────────────────────────────┘ │
-│                          │                             │
-│                          ▼                             │
-│             对话助手 (ChatGPT / AI Assistant)           │
-└────────────────────────────────────────────────────────┘
-```
+![从预训练到对齐](../assets/diagrams/pretrain_alignment.svg)
 
 ### 10.1 预训练阶段（Pre-training）
 预训练的目标是训练一个庞大的自回归语言模型，使其学会“互联网文档补全”。

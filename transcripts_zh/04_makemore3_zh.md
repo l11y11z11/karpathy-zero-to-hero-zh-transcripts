@@ -17,16 +17,7 @@
 - **前几千次迭代**：损失在极短时间内迅速下降到约 2.1 左右。
 - **损失曲线形状**：呈现出非常明显的“冰球棍/曲棍球棒”（Hockey-Stick）形状——开头有一个极陡峭的下降段，随后进入平缓改善的阶段。
 
-```
-Loss
- ^
- | \
-27 |  \
- |   \
- |    \______________________
- 3 |                        \________
-   +-----------------------------------> Iterations
-```
+![BatchNorm 前后的损失曲线](../assets/diagrams/batchnorm_loss_curve.svg)
 
 ### 1.2 理论期望的初始损失
 
@@ -111,14 +102,7 @@ $$\tanh(x) = \frac{e^x - e^{-x}}{e^x + e^{-x}}$$
 
 当输入 $|x| > 3$ 时，$\tanh(x)$ 就会进入两侧的平坦饱和区（Flat Tails），输出极度趋近于 $+1$ 或 $-1$。
 
-```
-Tanh(x)
-  1 +          /----------------- (饱和区，梯度 -> 0)
-    |         /
-  0 +--------/----------> x
-    |       /
- -1 +------/                     (饱和区，梯度 -> 0)
-```
+![BatchNorm 把激活值拉回健康区](../assets/diagrams/batchnorm_tanh.svg)
 
 ### 2.2 反向传播中的梯度摧毁机制
 
@@ -291,21 +275,7 @@ W1 = torch.randn((n_inputs, n_hidden)) * (5/3 / (n_inputs**0.5))
    $$y_i = \gamma \hat{x}_i + \beta$$
    *（其中 $\gamma$ 为增益参数 gain，初始为 1；$\beta$ 为偏置参数 bias，初始为 0）*
 
-```
-Input (hpreact)
-   |
-   v
-[ 计算 Mini-Batch 均值 μ_B 和方差 σ_B^2 ]
-   |
-   v
-[ 标准化: x_hat = (x - μ_B) / sqrt(σ_B^2 + ε) ]
-   |
-   v
-[ 可学习变换: y = γ * x_hat + β ] (γ 初始 1, β 初始 0)
-   |
-   v
-Output -> 进入 Tanh/ReLU
-```
+![BatchNorm 前向流程](../assets/diagrams/batchnorm_pipeline.svg)
 
 > [!IMPORTANT]
 > **为什么引入可学习参数 $\gamma$ 与 $\beta$？**  
@@ -478,12 +448,7 @@ for p in parameters:
 
 期望状态：各层的标准差稳定在 $0.65$ 左右，饱和率保持在 $5\%$ 左右的较低水平，曲线在深层网络中不会发生衰减或爆炸。
 
-```
-Layer 1 (Tanh): std 0.64, saturation 4.8%  [分布均衡]
-Layer 2 (Tanh): std 0.65, saturation 4.7%  [分布均衡]
-Layer 3 (Tanh): std 0.65, saturation 4.9%  [分布均衡]
-Layer 4 (Tanh): std 0.65, saturation 4.6%  [分布均衡]
-```
+![激活值健康度](../assets/diagrams/batchnorm_activation_health.svg)
 
 ### 6.2 反向梯度直方图 (Backward Gradients)
 
@@ -491,12 +456,7 @@ Layer 4 (Tanh): std 0.65, saturation 4.6%  [分布均衡]
 
 期望状态：从输出层到输入层，梯度的分布标准差应当在相同数量级保持稳定。若深度增加导致浅层梯度急剧缩小至 $10^{-10}$，说明发生了**梯度消失**；若急剧膨胀，则说明发生了**梯度爆炸**。
 
-```
-Layer 1 Grad: std 0.003
-Layer 2 Grad: std 0.003
-Layer 3 Grad: std 0.003
-Layer 4 Grad: std 0.003  (梯度流非常健康稳定)
-```
+![梯度流健康度](../assets/diagrams/batchnorm_gradient_health.svg)
 
 ### 6.3 参数更新量与数据量之比 (Update-to-Data Ratio)
 
@@ -530,23 +490,6 @@ for p in weights:
 
 本课程完整梳理了深度神经网络初始化与梯度控制的发展脉络：
 
-```
-[ 初始状态问题 ]
-   ├── Logits 绝对值过大  ---> 出现"冰球棍"损失曲线 ---> 解决: 缩小最后一层 W2, b2=0
-   └── Tanh 前激活值过大  ---> 饱和区导数归 0 (死神经元) ---> 解决: 缩小 W1, b1=0
-
-[ 数学规范化策略 ]
-   ├── Kaiming 初始化   ---> 方差维持 std = gain / sqrt(fan_in) (Tanh gain=5/3, ReLU gain=sqrt(2))
-   └── BatchNorm (2015)  ├── 强制标准化: (x - μ_B) / sqrt(σ_B^2 + ε)
-                        ├── 可学习参数: γ * x_hat + β
-                        ├── 移除前面层的 Bias (被 μ_B 抵消)
-                        ├── 引入批次噪声 (正则化副作用)
-                        └── 维护 Running Mean / Var 供 Inference 推理使用
-
-[ 网络健康度诊断 Diagnostics ]
-   ├── 1. Forward Activations : 检查各层饱和度 (Tanh ~5%)
-   ├── 2. Backward Gradients   : 检查梯度流是否均匀稳定 (无消失/爆炸)
-   └── 3. Update-to-Data Ratio : 检查 log10(lr * grad.std() / data.std()) ≈ -3.0
-```
+![网络健康度诊断](../assets/diagrams/batchnorm_diagnostics.svg)
 
 得益于 BatchNorm 等归一化技术、残差连接（Residual Connections）以及现代高级优化器（如 Adam），当今训练深层神经网络对权重的初始值敏感度大为降低。然而，掌握激活值与梯度的底层微观特性，依然是深入研究复杂深度学习架构的核心基本功。

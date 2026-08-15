@@ -403,13 +403,7 @@ OpenAI 导出的 GPT-2 分词器包含两个关键权重文件：
 
 当我们需要向已有预训练模型中引入新的特殊 Token 时，必须同步修改 Transformer 模型的两处矩阵参数：
 
-```mermaid
-graph TD
-    A[新增 Special Token] --> B[修改 Embedding 矩阵 W_e]
-    A --> C[修改 LM Head 输出矩阵 W_h]
-    B --> D[新增 1 行: R^(V+1) x d]
-    C --> E[新增 1 列: R^d x (V+1)]
-```
+![特殊 Token 的模型手术](../assets/diagrams/special_token_surgery.svg)
 
 1. **词嵌入矩阵（Token Embedding Table）**：
    从 $W_e \in \mathbb{R}^{V \times d}$ 扩展为 $W_e' \in \mathbb{R}^{(V+1) \times d}$。新增加的一行（第 $V+1$ 行）通常采用标准差较小的随机正态分布初始化（如 $\mathcal{N}(0, 0.02^2)$）。
@@ -465,15 +459,7 @@ decoded_text = tokenizer.decode(ids)
 
 ### 9.1 SentencePiece 与 TikToken 的底层哲学差异
 
-```mermaid
-graph LR
-    subgraph TikToken / minBPE
-        A1[原始文本 str] --> A2[UTF-8 Encode] --> A3[Raw Bytes 0-255] --> A4[BPE 合并为高频 Token]
-    end
-    subgraph SentencePiece
-        B1[原始文本 str] --> B2[Unicode Code Points] --> B3[Code Point BPE 合并] --> B4[罕见字符 Fallback 为 Byte Tokens]
-    end
-```
+![Tokenizer 路线对比](../assets/diagrams/tokenizer_comparison.svg)
 
 | 维度 | TikToken / minBPE | SentencePiece |
 | :--- | :--- | :--- |
@@ -535,20 +521,7 @@ class GPT(nn.Module):
 
 设词表大小为 $V$，模型隐藏层维度为 $d$，上下文长度为 $N$：
 
-```
-                           词表大小 V 的双刃剑
-                           
-        V 过小 (如 V=256)                   V 过大 (如 V=1,000,000)
-    +------------------------+         +--------------------------------+
-    | * 序列长度 N 激增        |         | * 嵌入表 W_e/W_h 体积暴增      |
-    | * 上下文被迅速占满      |         | * 稀有 Token 严重欠拟合        |
-    | * Attention 开销 O(N²) |         | * LM Head Softmax 计算极慢     |
-    | * 模型缺乏单步思考容量  |         | * 语义单 Token 组合过大        |
-    +------------------------+         +--------------------------------+
-                                 
-                                  平衡点
-                      主流 LLM 选择: V ≈ 32,000 ~ 100,000
-```
+![词表大小的双刃剑](../assets/diagrams/vocab_tradeoff.svg)
 
 ---
 
@@ -642,13 +615,7 @@ enc.encode(".defaultstyle")
 
 在 LLM 发展史上，研究人员曾发现一个极其离奇的现象：当要求 GPT-3 重复单词 `"SolidGoldMagikarp"` 时，模型会突然崩溃，表现出拒绝回答、逻辑错乱、幻觉甚至直接用脏话辱骂用户。
 
-```mermaid
-graph TD
-    A[Tokenizer 训练集包含大量 Reddit 数据] -->|包含用户 u/SolidGoldMagikarp| B[BPE 铸造了专属 Token 'SolidGoldMagikarp']
-    C[LLM 预训练集剔除了这部分 Reddit 数据] -->|数据未进入 LLM 训练| D[Embedding 表中该行向量从未被反向传播更新]
-    E[用户输入 SolidGoldMagikarp] --> F[提取到完全未训练的随机初始化向量 Untrained Memory]
-    F --> G[Transformer 接收噪声向量, 触发 Out-of-Distribution 异常行为]
-```
+![未训练 Token 的异常路径](../assets/diagrams/untrained_token_flow.svg)
 
 #### 根源解释：
 - **分词器训练集与 LLM 训练集不一致**：分词器在包含大量 Reddit 帖子的数据集上训练，其中一位高频活跃用户名为 `u/SolidGoldMagikarp`。分词器为其分配了一个专属 Token。

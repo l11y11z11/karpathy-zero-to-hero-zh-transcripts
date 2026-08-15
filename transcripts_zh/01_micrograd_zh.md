@@ -14,20 +14,7 @@
 
 我们将要构建的这个核心项目叫做 **Micrograd**。Micrograd 是我在大约两年前发布到 GitHub 上的一个轻量级开源库。当时我只上传了源代码，大家需要自己去啃源码来理解它的工作原理。而在本次讲座中，我将带大家逐行实现它，并对每一个组件和细节进行详尽的讲解。
 
-```
-                       +-------------------+
-                       |    Micrograd      |
-                       +---------+---------+
-                                 |
-           +---------------------+---------------------+
-           |                                           |
-+----------v----------+                     +----------v----------+
-|  engine.py (100 lines)|                     |   nn.py (50 lines)  |
-|  - Value 类         |                     |  - Neuron 类        |
-|  - 标量自动求导引擎   |                     |  - Layer 类         |
-|  - 拓扑排序与反向传播 |                     |  - MLP 多层感知机   |
-+---------------------+                     +---------------------+
-```
+![Micrograd 的两层结构](../assets/diagrams/micrograd_modules.svg)
 
 ### 1.1 什么是 Micrograd？它的重要性何在？
 
@@ -124,15 +111,7 @@ ys = f(xs)
 plt.plot(xs, ys)
 ```
 
-```
-       y ^
-         |      *             *
-      20 |-------o-----------
-         |        \         /
-       5 |---------\---o---/
-         +----------+--+---+--------> x
-                   -3  2/3 3
-```
+![梯度与局部斜率](../assets/diagrams/micrograd_parabola.svg)
 
 现在思考一个问题：**在特定的输入点 $x$，函数的“导数”代表什么？**
 
@@ -252,13 +231,7 @@ L = d * f; L.label = 'L'
 
 此时，表达式 $L = (a \cdot b + c) \cdot f$ 在内存中构建了一个指向拓扑图：
 
-```
-a (2.0)  ---* (mul) ---> e (-6.0) 
-b (-3.0) --/             \
-                          + (add) ---> d (4.0) ---* (mul) ---> L (-8.0)
-c (10.0) ----------------/                       /
-f (-2.0) ---------------------------------------/
-```
+![Micrograd 计算图](../assets/diagrams/micrograd_computation_graph.svg)
 
 ### 3.2 图可视化工具 (Graphviz Visualization)
 
@@ -360,11 +333,7 @@ $$\frac{\partial d}{\partial c} = 1.0, \quad \frac{\partial d}{\partial e} = 1.0
 
 答案就是**微积分链式法则（Chain Rule）**！
 
-```
-     链式法则 (Chain Rule)
-  If z depends on y, and y depends on x:
-      dz / dx = (dz / dy) * (dy / dx)
-```
+![链式法则与反向传播](../assets/diagrams/micrograd_chain_rule.svg)
 
 维基百科给出的经典直观解释：
 > **如果一辆汽车的速度是自行车的 2 倍（$\frac{d\text{Car}}{d\text{Bike}} = 2$），而自行车的速度是行人步行速度的 4 倍（$\frac{d\text{Bike}}{d\text{Walk}} = 4$），那么汽车的速度就是行人步行速度的 $2 \times 4 = 8$ 倍（$\frac{d\text{Car}}{d\text{Walk}} = 2 \times 4 = 8$）。**
@@ -461,12 +430,7 @@ L = d * f          # 3.7176 * (-1.96) = -7.2865
 
 数学上对单神经元的最简建模如下：
 
-```
-Inputs (x)    Weights (w)
-  x1 ---------> ( * w1 ) ----\
-                              +----> Sum ( + b ) ----> Activation f(x) ----> Output (o)
-  x2 ---------> ( * w2 ) ----/
-```
+![神经元的前向计算](../assets/diagrams/micrograd_neuron_forward.svg)
 
 - 输入向量 $\mathbf{x} = [x_1, x_2, \dots, x_n]$
 - 突触权重向量 $\mathbf{w} = [w_1, w_2, \dots, w_n]$ (控制每个输入的连接强度)
@@ -485,16 +449,7 @@ $$\tanh(x) = \frac{e^{2x} - 1}{e^{2x} + 1}$$
 
 画出 $\tanh(x)$ 的函数图像：
 
-```
-       y ^
-       +1 +------------------...-- (Saturates at +1)
-          |                .
-        0 +-------------o------------- (Zero crossing at 0)
-          |           .
-       -1 +--...------------------ (Saturated at -1)
-          +-----------+-----------+---> x
-                     -2     0     2
-```
+![tanh 激活函数与梯度](../assets/diagrams/micrograd_tanh.svg)
 
 从图像可以看出：$\tanh$ 函数将任意实数范围 $(-\infty, +\infty)$ 的输入非线性地挤压（Squash）到 $(-1, +1)$ 区间内。当输入非常大时平滑饱和收敛至 $+1$，当输入非常小时收敛至 $-1$。
 
@@ -631,15 +586,7 @@ class Value:
 
 因此，在有向无环计算图（DAG）中，**必须保证所有下游节点先完成反向传播，才能轮到上游节点**。在图论中，这种节点遍历顺序称为**拓扑排序（Topological Sort）**。
 
-```
-拓扑排序示例:
-  x1, w1 ---> x1w1 ---\
-                       +---> n ---> o (根节点)
-  x2, w2 ---> x2w2 ---/
-  
-正向拓扑链: [x1, w1, x1w1, x2, w2, x2w2, b, n, o]
-逆向反向传播链: [o, n, b, x2w2, w2, x2, x1w1, w1, x1]
-```
+![计算图的拓扑顺序](../assets/diagrams/micrograd_topological_order.svg)
 
 我们可以编写深度优先搜索 (DFS) 算法来实现拓扑排序，并封装进 `Value` 类的 `backward()` 方法中：
 
@@ -861,10 +808,7 @@ print("w2.grad:", w2.grad.item()) # 0.0
 根据深度学习的层级结构：
 $$\text{Value (标量节点)} \longrightarrow \text{Neuron (神经元)} \longrightarrow \text{Layer (神经元层)} \longrightarrow \text{MLP (多层感知机)}$$
 
-```
-[Layer 1 (Input)] ---> [Layer 2 (Hidden)] ---> [Layer 3 (Output)]
- (3 inputs)              (4 neurons)              (1 neuron)
-```
+![多层感知机 MLP](../assets/diagrams/micrograd_mlp_architecture.svg)
 
 ---
 
@@ -1037,15 +981,7 @@ for k in range(100): # 迭代 100 步
 ```
 
 输出日志示例：
-```
-Step  0 | Loss: 7.124589
-Step 10 | Loss: 2.341205
-Step 20 | Loss: 0.895123
-Step 30 | Loss: 0.231456
-Step 40 | Loss: 0.078412
-...
-Step 90 | Loss: 0.000845
-```
+![损失函数下降](../assets/diagrams/micrograd_loss_curve.svg)
 
 观察预测值与真实的对比：
 ```python

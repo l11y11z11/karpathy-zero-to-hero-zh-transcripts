@@ -146,17 +146,7 @@ for layer in model.layers:
 
 DeepMind 的 **WaveNet** (2016) 论文提出了一种自回归生成模型。其核心思想是采用**树状层次化融合结构**（Progressive Tree Fusion）：
 
-```
-输入字符:    [C1, C2]   [C3, C4]   [C5, C6]   [C7, C8]
-               \  /       \  /       \  /       \  /
-第 1 层 (Bigram):  [  B1  ]     [  B2  ]     [  B3  ]     [  B4  ]
-                     \       /             \       /
-第 2 层 (4-gram):    [    F1    ]           [    F2    ]
-                           \                     /
-第 3 层 (8-gram):          [        H1        ]
-                                    |
-输出 logits:                    [  Predict  ]
-```
+![WaveNet 层次化感受野](../assets/diagrams/wavenet_tree.svg)
 
 信息在网络深入的过程中被缓慢、逐层地提炼融合：
 1. **第 1 层**：每相邻 $2$ 个字符融合为一个 Bigram 表示（由 $8$ 个节点减少为 $4$ 个节点）。
@@ -343,12 +333,7 @@ class BatchNorm1d:
 - **显式 Python 循环**：假设我们要对文本 `D'Andre` 中的所有连续字符段应用网络，在 Python 中需要使用 `for` 循环遍历每个位置并多次调用前向传播。
 - **卷积层 (Convolution Layer)**：卷积本质上就是将这个“在空间/时间轴上平移滑动的线性滤波器 (Sliding Linear Filter)”下沉到 CUDA 底层 Kernel 中并行化执行。
 
-```
-因果掩码 (Causal Masking):
-t-3   t-2   t-1    t
- |     |     |     |
- o-----o-----o-----o  --> 只能利用当前及历史信息，绝不泄漏未来信息 (t+1)
-```
+![Transformer 因果掩码](../assets/diagrams/causal_mask.svg)
 
 ---
 
@@ -356,10 +341,7 @@ t-3   t-2   t-1    t
 
 在树状层次化结构中，相邻的滑动窗口之间存在大量的中间计算节点复用：
 
-```
-位置 i:   (C1, C2) -> H1,  (C3, C4) -> H2  ==>  (H1, H2) -> Q1
-位置 i+1: (C2, C3) -> H1', (C4, C5) -> H2' ==>  (H1', H2') -> Q2
-```
+![WaveNet 滑动窗口与特征复用](../assets/diagrams/wavenet_context_reuse.svg)
 
 在使用卷积网络时，这些中间激活值在一次前向传播中被一次性计算并保存在显存中，后续层直接复用，从而极大地提升了模型的前向传播与反向传播效率。
 

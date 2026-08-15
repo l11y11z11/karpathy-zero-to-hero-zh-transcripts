@@ -44,27 +44,7 @@
 
 模型的整体架构和前向传播流程如下：
 
-```
-[ 输入字符索引 (x1, x2, x3) ]  (每个索引 ∈ [0, 26])
-          │
-          ▼  查找共享嵌入矩阵 C (Shape: 27 × d)
-[ C[x1], C[x2], C[x3] ]        (每个向量 Shape: d)
-          │
-          ▼  拼接 (Concatenation)
-[ X_concat ]                   (Shape: 3d)
-          │
-          ▼  隐层全连接 W1 (Shape: 3d × h) + b1 (Shape: h)
-[ Pre-activation ]             (Shape: h)
-          │
-          ▼  双曲正切激活函数 tanh
-[ Hidden State (h_act) ]       (Shape: h)
-          │
-          ▼  输出层全连接 W2 (Shape: h × 27) + b2 (Shape: 27)
-[ Logits (未归一化对数几率) ]    (Shape: 27)
-          │
-          ▼  Softmax 层
-[ 概率分布 P(y | x1, x2, x3) ] (Shape: 27)
-```
+![MLP 语言模型数据流](../assets/diagrams/mlp_pipeline.svg)
 
 数学公式表达：
 1. **嵌入向量查找与拼接**：
