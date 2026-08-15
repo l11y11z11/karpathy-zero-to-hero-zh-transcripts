@@ -1,4 +1,4 @@
-# 卡帕西的那个文字稿中文版
+# 卡帕西Neural Networks: Zero to Hero的文字稿中文版
 
 Andrej Karpathy《Neural Networks: Zero to Hero》课程的中文学习版文字稿。
 
