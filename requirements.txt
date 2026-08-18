@@ -1,0 +1,15 @@
+numpy
+torch
+matplotlib
+tiktoken
+regex
+requests
+transformers
+datasets
+tqdm
+wandb
+pandas
+jupyter
+nbconvert
+ipykernel
+jinja2
